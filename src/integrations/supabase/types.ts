@@ -14,7 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      charters: {
+        Row: {
+          charter_data: Json
+          created_at: string
+          id: string
+          project_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          charter_data?: Json
+          created_at?: string
+          id?: string
+          project_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          charter_data?: Json
+          created_at?: string
+          id?: string
+          project_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          base_priority: number
+          charter_id: string
+          context_switch_count: number
+          created_at: string
+          description: string | null
+          id: string
+          idle_time: number
+          last_active: string | null
+          personality_state: string | null
+          priority_score: number
+          status: Database["public"]["Enums"]["task_status"]
+          time_spent: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          base_priority?: number
+          charter_id: string
+          context_switch_count?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          idle_time?: number
+          last_active?: string | null
+          personality_state?: string | null
+          priority_score?: number
+          status?: Database["public"]["Enums"]["task_status"]
+          time_spent?: number
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          base_priority?: number
+          charter_id?: string
+          context_switch_count?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          idle_time?: number
+          last_active?: string | null
+          personality_state?: string | null
+          priority_score?: number
+          status?: Database["public"]["Enums"]["task_status"]
+          time_spent?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_charter_id_fkey"
+            columns: ["charter_id"]
+            isOneToOne: false
+            referencedRelation: "charters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +111,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      task_status: "Backlog" | "To-Do" | "In Progress" | "Review" | "Done"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +238,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      task_status: ["Backlog", "To-Do", "In Progress", "Review", "Done"],
+    },
   },
 } as const
