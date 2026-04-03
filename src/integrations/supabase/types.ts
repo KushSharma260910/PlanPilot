@@ -19,6 +19,7 @@ export type Database = {
           charter_data: Json
           created_at: string
           id: string
+          project_id: string | null
           project_name: string
           updated_at: string
           user_id: string
@@ -27,6 +28,7 @@ export type Database = {
           charter_data?: Json
           created_at?: string
           id?: string
+          project_id?: string | null
           project_name: string
           updated_at?: string
           user_id: string
@@ -35,7 +37,43 @@ export type Database = {
           charter_data?: Json
           created_at?: string
           id?: string
+          project_id?: string | null
           project_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "charters_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
           updated_at?: string
           user_id?: string
         }
@@ -53,6 +91,7 @@ export type Database = {
           last_active: string | null
           personality_state: string | null
           priority_score: number
+          project_id: string | null
           status: Database["public"]["Enums"]["task_status"]
           time_spent: number
           title: string
@@ -70,6 +109,7 @@ export type Database = {
           last_active?: string | null
           personality_state?: string | null
           priority_score?: number
+          project_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           time_spent?: number
           title: string
@@ -87,6 +127,7 @@ export type Database = {
           last_active?: string | null
           personality_state?: string | null
           priority_score?: number
+          project_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           time_spent?: number
           title?: string
@@ -99,6 +140,13 @@ export type Database = {
             columns: ["charter_id"]
             isOneToOne: false
             referencedRelation: "charters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
