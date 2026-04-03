@@ -1,88 +1,96 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { generateCharter, type CharterInput } from "@/lib/charter-generator";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { generateStructuredCharter, type CharterWizardData, type StructuredCharter } from "@/lib/charter-generator";
+import { exportCharterToPdf } from "@/lib/charter-pdf";
 import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
+import CharterWizard from "@/components/CharterWizard";
+import CharterReview from "@/components/CharterReview";
 
 export default function CharterPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const projectId = searchParams.get("projectId");
+  const charterId = searchParams.get("charterId");
+
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState<CharterInput>({
-    projectName: "",
-    objective: "",
-    targetUsers: "",
-    features: "",
-    constraints: "",
-    successCriteria: "",
-  });
+  const [phase, setPhase] = useState<"wizard" | "review">(charterId ? "review" : "wizard");
+  const [generatedCharter, setGeneratedCharter] = useState<StructuredCharter | null>(null);
+  const [currentCharterId, setCurrentCharterId] = useState<string | null>(charterId);
 
-  const update = (key: keyof CharterInput, val: string) =>
-    setForm((prev) => ({ ...prev, [key]: val }));
+  // Load existing charter for editing
+  useEffect(() => {
+    if (!charterId || !user) return;
+    supabase
+      .from("charters")
+      .select("*")
+      .eq("id", charterId)
+      .eq("user_id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data?.charter_data) {
+          setGeneratedCharter(data.charter_data as unknown as StructuredCharter);
+          setPhase("review");
+        }
+      });
+  }, [charterId, user]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleWizardComplete = (data: CharterWizardData) => {
+    const charter = generateStructuredCharter(data);
+    setGeneratedCharter(charter);
+    setPhase("review");
+  };
+
+  const handleSave = async (charter: StructuredCharter) => {
     if (!user) return;
     setLoading(true);
 
-    const charterData = generateCharter(form);
-
-    const { error } = await supabase.from("charters").insert({
-      user_id: user.id,
-      project_name: form.projectName,
-      charter_data: charterData as any,
-    });
-
-    if (error) {
-      toast.error("Failed to save charter: " + error.message);
+    if (currentCharterId) {
+      const { error } = await supabase
+        .from("charters")
+        .update({ charter_data: charter as any, project_name: charter.title })
+        .eq("id", currentCharterId);
+      if (error) toast.error("Failed to update: " + error.message);
+      else toast.success("Charter updated!");
     } else {
-      toast.success("Charter created!");
-      navigate("/dashboard");
+      const insertData: any = {
+        user_id: user.id,
+        project_name: charter.title,
+        charter_data: charter as any,
+      };
+      if (projectId) insertData.project_id = projectId;
+
+      const { data, error } = await supabase.from("charters").insert(insertData).select("id").single();
+      if (error) toast.error("Failed to save: " + error.message);
+      else {
+        toast.success("Charter saved!");
+        setCurrentCharterId(data.id);
+      }
     }
     setLoading(false);
   };
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto animate-slide-in">
-        <h1 className="text-2xl font-bold mb-6">Create Project Charter</h1>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="space-y-2">
-            <Label>Project Name</Label>
-            <Input value={form.projectName} onChange={(e) => update("projectName", e.target.value)} required placeholder="My Project" />
-          </div>
-          <div className="space-y-2">
-            <Label>Objective</Label>
-            <Textarea value={form.objective} onChange={(e) => update("objective", e.target.value)} required placeholder="What is the goal of this project?" />
-          </div>
-          <div className="space-y-2">
-            <Label>Target Users</Label>
-            <Input value={form.targetUsers} onChange={(e) => update("targetUsers", e.target.value)} required placeholder="Who will use this?" />
-          </div>
-          <div className="space-y-2">
-            <Label>Features (comma-separated)</Label>
-            <Textarea value={form.features} onChange={(e) => update("features", e.target.value)} required placeholder="Auth, Dashboard, Reports, Notifications" />
-          </div>
-          <div className="space-y-2">
-            <Label>Constraints</Label>
-            <Textarea value={form.constraints} onChange={(e) => update("constraints", e.target.value)} placeholder="Budget, timeline, tech limitations..." />
-          </div>
-          <div className="space-y-2">
-            <Label>Success Criteria (comma-separated)</Label>
-            <Textarea value={form.successCriteria} onChange={(e) => update("successCriteria", e.target.value)} required placeholder="User adoption > 80%, Load time < 2s" />
-          </div>
-
-          <Button type="submit" className="w-full gradient-primary" disabled={loading}>
-            {loading ? "Generating..." : "Generate Charter"}
-          </Button>
-        </form>
+      <div className="animate-slide-in">
+        {phase === "wizard" && (
+          <>
+            <h1 className="text-2xl font-bold mb-6">Create Project Charter</h1>
+            <CharterWizard onComplete={handleWizardComplete} loading={loading} />
+          </>
+        )}
+        {phase === "review" && generatedCharter && (
+          <CharterReview
+            charter={generatedCharter}
+            onSave={handleSave}
+            onExportPdf={exportCharterToPdf}
+            onBack={() => setPhase("wizard")}
+            saving={loading}
+          />
+        )}
       </div>
     </DashboardLayout>
   );
